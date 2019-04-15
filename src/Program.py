@@ -1,6 +1,10 @@
 import os
 import numpy as np
 import pandas as pd
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.naive_bayes import MultinomialNB
+from sklearn.metrics import classification_report
+
 
 
 def wczytajDane(sciezki_plikow, gatunki):
@@ -16,7 +20,7 @@ def wczytajDane(sciezki_plikow, gatunki):
 		dataset_part["Gatunek"] = gatunki[iGatunek]
 		dataset_part["Gatunek_indeks"] = iGatunek
 		dataset = dataset.append(dataset_part)
-		print("len(dataset_part) = " + str(len(dataset_part)))
+		print("\nlen(dataset_part) = " + str(len(dataset_part)))
 		print("dataset_part.shape = " + str(dataset_part.shape))
 		print(dataset_part[:5])
 		
@@ -47,6 +51,29 @@ def wczytajDane(sciezki_plikow, gatunki):
 	
 	return [dataset, train, test]
 
+	
+	
+def bagOfWords(train, test):
+	vectorizer = CountVectorizer()
+	X_train_counts = vectorizer.fit_transform(train['Tekst'])
+	X_test_counts = vectorizer.transform(test['Tekst'])
+	print("\nRozmiar stworzonej macierzy: {x}".format(x=X_train_counts.shape))
+	print("Liczba dokumentow: {x}".format(x=X_train_counts.shape[0]))
+	print("Rozmiar wektora bag-of-words {x}".format(x=X_train_counts.shape[1]))
+	
+	
+	nb = MultinomialNB()
+
+	nb.fit(X_train_counts, train['Gatunek'])
+
+	print("\nIle elementow testowych udalo sie poprawnie zaklasyfikowac?")
+	X_test_predict = nb.predict(X_test_counts)
+	accuracy = sum(X_test_predict == test['Gatunek']) / len(test)
+	print(accuracy)
+	print("Szczegolowy raport (per klasa)")
+	print(classification_report(test['Gatunek'], X_test_predict))
+
+
 
 def main():
 	print("Poczatek programu.")
@@ -66,6 +93,7 @@ def main():
 	print("pliki_danych:\n" + str(pliki_danych))
 	print("\ngatunki:\n" + str(gatunki))
 	
+	#wczytanie danych z wielu plikow do pojedynczych zmiennych
 	[dataset, train, test] = wczytajDane(sciezki_plikow, gatunki)
 	
 	print("\n\nElementow w zbiorze treningowym: {train}, testowym: {test}".format(train=len(train), test=len(test)))
@@ -75,6 +103,9 @@ def main():
 
 	print("\n\nLicznosc klas w zbiorze testowym: ")
 	print(test.Gatunek.value_counts())   # wyswietl rozklad etykiet w kolumnie "Gatunek"
+	
+	#wykonaj klasyfikacje wedlug modelu BagOfWords
+	bagOfWords(train, test)
 	
 	print("Koniec programu.")
 
