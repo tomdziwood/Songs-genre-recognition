@@ -4,6 +4,8 @@ import pandas as pd
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.naive_bayes import MultinomialNB
 from sklearn.metrics import classification_report
+from sklearn.svm import SVC
+from nltk import word_tokenize
 
 
 
@@ -72,14 +74,74 @@ def bagOfWords(train, test):
 	print(accuracy)
 	print("Szczegolowy raport (per klasa)")
 	print(classification_report(test['Gatunek'], X_test_predict))
+	
 
 
+def load_embeddings(path):
+	mapping = dict()
+
+	with open(path, 'r', encoding='utf8') as f:
+		naglowek = f.readline()
+
+		for line in f:
+			line = line.strip()
+			if len(line) == 0:
+				continue
+			splitted = line.split(" ")
+			mapping[splitted[0]] = np.array(splitted[1:], dtype=float)
+
+	return mapping
+	
+	
+	
+def documents_to_ave_embeddings(docs, embeddings):
+    result = []
+    for doc in docs:
+        words = word_tokenize(doc.lower())
+        vectors = []
+        for word in words:
+            try:
+                vectors.append(embeddings[word])
+            except:
+                pass
+
+        srodek_ciezkosci = np.mean(vectors, axis=0)
+        result.append(srodek_ciezkosci)
+        
+    return result
+	
+
+
+def wordsEmbedding(train, test):
+	print("Trwa wczytywanie embeddingów...")
+	mapping = load_embeddings('../word2vec/nkjp-lemmas-restricted-100-skipg-hs.txt')
+
+	print("\nTrwa uśrednianie embeddingów:")
+	print("   - zbioru trenującego...")
+	train_transformed = documents_to_ave_embeddings(train['Tekst'], mapping)
+	print("   - zbioru testującego...")
+	test_transformed = documents_to_ave_embeddings(test['Tekst'], mapping)
+
+	print("\nTrwa klasyfikacja...")
+	classifier = SVC(C=1.0)
+	classifier.fit(train_transformed, train['Gatunek_indeks'])
+	
+	accuracy = classifier.score(test_transformed, test['Gatunek_indeks'])
+	
+	print("W zbiorze testowym {n}% przypadków zostało poprawnie zaklasyfikowanych!".format(n=100.*accuracy))
+	print(classification_report(test['Gatunek_indeks'], classifier.predict(test_transformed)))
+	
+	
 
 def main():
 	print("Poczatek programu.")
 	np.random.seed(0)
 	
-	sciezka_danych = '../data/'
+	#sciezka_danych = '../data/'
+	sciezka_danych = '../data1/'
+	#sciezka_danych = '../data2/'
+	#sciezka_danych = '../data3/'
+	
 	pliki_danych = os.listdir(sciezka_danych)
 	sciezki_plikow = []
 	for i in range(len(pliki_danych)):
@@ -106,6 +168,9 @@ def main():
 	
 	#wykonaj klasyfikacje wedlug modelu BagOfWords
 	bagOfWords(train, test)
+	
+	#wykonaj klasyfikacje wedlug modelu Word Embedding
+	wordsEmbedding(train, test)
 	
 	print("Koniec programu.")
 
